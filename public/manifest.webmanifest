@@ -1,0 +1,9 @@
+{
+  "name": "Fuel Allowance",
+  "short_name": "Fuel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4faf8",
+  "theme_color": "#1f6f6b",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
