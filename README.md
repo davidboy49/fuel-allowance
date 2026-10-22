@@ -25,7 +25,7 @@ Demo logins: `sr001@demo.local` (rep), `rsm01@demo.local`, `nsm01@demo.local`, `
 ```bash
 npm test                 # allowance engine unit tests
 npm run build && npm start   # then, in another shell, with a freshly seeded DB:
-npm run test:e2e         # set CHROMIUM_PATH if Playwright cannot find its browser
+npm run test:e2e         # reseeds the database, so use a throwaway one; set CHROMIUM_PATH if Playwright cannot find its browser
 ```
 
 ## How it is organised
@@ -37,13 +37,15 @@ npm run test:e2e         # set CHROMIUM_PATH if Playwright cannot find its brows
 | `src/server/api.ts` | Server functions: requests and approvals, check-ins, extra km, statements |
 | `src/server/auth.ts` | Password hashing, signed session cookie, role checks, audit log |
 | `prisma/schema.prisma` | Data model with effective-dated allowance profiles |
+| `src/server/plans.ts` | Journey plan versions, km from customer pins, RSM approval |
+| `src/server/master.ts` | Customers and GPS pin verification, employees, password reset |
 | `src/routes/_app/` | Screens per role |
 
 ## Known limits of this first version
 
 - Road distance is an estimate (straight line x 1.3) until OSRM or Google routing is connected (`RoadDistanceProvider` in `engine.ts`).
 - A browser app cannot detect fake-GPS apps; check-ins are flagged for geofence, accuracy and clock skew, and RSMs spot check.
-- Offline check-ins queue in localStorage; there is no service worker or install prompt yet.
-- Journey plans are seeded; the plan editor and RSM plan approval screen are not built yet.
+- Offline check-ins queue in localStorage. A small service worker keeps the app installable and reopenable offline (last visited pages and static files); it does not run check-ins in the background.
+- Journey plans have an editor and RSM approval; there is no map view yet and planned km uses the same estimated road distance.
 - Amounts are stored as floats in USD; switch to integer cents or Decimal before payroll integration.
 - Approval chain per position and the 15% tolerance are suggestions, not signed-off policy.

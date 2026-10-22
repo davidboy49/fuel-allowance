@@ -6,6 +6,7 @@ import {
   dayOfCycle,
   haversineKm,
   insideGeofence,
+  planLegs,
   rateFor,
   ratePerKm,
   routeKm,
@@ -130,5 +131,26 @@ describe('approvalChain', () => {
       expect(approvalChain(p).at(-1)).toBe('HR')
     }
     expect(approvalChain('SR')).toEqual(['RSM', 'NSM', 'HR'])
+  })
+})
+
+describe('planLegs', () => {
+  const depot = { lat: 11.5564, lng: 104.9282 }
+  const stops = [
+    { dayOfCycle: 1, customerId: 'a', lat: 11.5801, lng: 104.9101 },
+    { dayOfCycle: 1, customerId: 'b', lat: 11.5935, lng: 104.9023 },
+    { dayOfCycle: 2, customerId: 'a', lat: 11.5801, lng: 104.9101 },
+  ]
+  it('adds the return leg to the last stop of each day', async () => {
+    const { legKm, dayKm } = await planLegs(depot, stops)
+    expect(legKm[0]).toBeGreaterThan(0)
+    expect(legKm[1]).toBeGreaterThan(legKm[0] / 4)
+    expect(dayKm[1]).toBeCloseTo(legKm[0] + legKm[1], 1)
+    expect(dayKm[2]).toBeCloseTo(legKm[2], 1)
+    // out and back to one customer is about twice the one-way estimate
+    expect(dayKm[2]).toBeCloseTo(2 * haversineKm(depot, stops[2]) * 1.3, 1)
+  })
+  it('handles an empty plan', async () => {
+    expect(await planLegs(depot, [])).toEqual({ legKm: [], dayKm: {} })
   })
 })

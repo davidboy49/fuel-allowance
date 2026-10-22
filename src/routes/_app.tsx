@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
-import { ClipboardCheck, Fuel, History, LogOut, MapPin, PlusCircle, ReceiptText, Tag, Users } from 'lucide-react'
+import { ClipboardCheck, Fuel, History, LogOut, MapPin, PlusCircle, ReceiptText, Route as RouteIcon, Store, Tag, Users } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { logoutFn, meFn } from '#/server/api'
 import { ROLE_LABELS } from '#/lib/format'
@@ -27,6 +27,8 @@ const NAV: NavItem[] = [
   { to: '/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
   { to: '/month', label: 'Month', icon: ReceiptText, roles: ['SR', 'ASM', 'OM', 'RSM', 'NSM', 'HR', 'FIN', 'ADMIN'] },
   { to: '/requests/new', label: 'New request', icon: PlusCircle, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/plans', label: 'Journey plans', icon: RouteIcon, roles: ['SR', 'ASM', 'OM', 'RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/customers', label: 'Customers', icon: Store, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
   { to: '/employees', label: 'Employees', icon: Users, roles: ['RSM', 'NSM', 'HR', 'ADMIN', 'FIN'] },
   { to: '/rates', label: 'Rates', icon: Tag, roles: ['HR', 'FIN', 'ADMIN', 'NSM', 'RSM'] },
   { to: '/audit', label: 'Audit log', icon: History, roles: ['HR', 'FIN', 'ADMIN'] },

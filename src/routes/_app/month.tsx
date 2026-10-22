@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { generateStatementsFn, statementActionFn, statementsFn } from '#/server/api'
+import { generateStatementsFn, payrollCsvFn, statementActionFn, statementsFn } from '#/server/api'
 import { Badge, statusTone } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
@@ -22,6 +22,17 @@ function Month() {
     mutationFn: (v: { id: string; action: 'confirm' | 'dispute' | 'approve' | 'pay' }) => statementActionFn({ data: v }),
     onSuccess: refresh,
   })
+  const exportCsv = useMutation({
+    mutationFn: () => payrollCsvFn({ data: { month } }),
+    onSuccess: (r) => {
+      const url = URL.createObjectURL(new Blob([r.csv], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = r.filename
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+  })
   const canGenerate = ['HR', 'FIN', 'ADMIN'].includes(user.role)
   const total = list.data?.reduce((s, r) => s + r.total, 0) ?? 0
 
@@ -35,9 +46,11 @@ function Month() {
         <div className="flex items-center gap-2">
           <Input aria-label="Month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-40" />
           {canGenerate && <Button variant="outline" disabled={gen.isPending} onClick={() => gen.mutate()}>Calculate month</Button>}
+          {canGenerate && <Button variant="outline" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}>Export payroll CSV</Button>}
         </div>
       </div>
-      {(gen.error || act.error) && <p role="alert" className="text-sm text-destructive">{errMsg(gen.error ?? act.error)}</p>}
+      {(gen.error || act.error || exportCsv.error) && <p role="alert" className="text-sm text-destructive">{errMsg(gen.error ?? act.error ?? exportCsv.error)}</p>}
+      {exportCsv.data && <p role="status" className="text-sm text-muted-foreground">{exportCsv.data.rows === 0 ? 'Nothing to export yet: only statements signed off by the RSM are included.' : `Exported ${exportCsv.data.rows} statement${exportCsv.data.rows > 1 ? 's' : ''}.`}</p>}
       <Card>
         <CardContent className="pt-5">
           {list.data?.length === 0 && <p className="text-sm text-muted-foreground">No statements for {month}.{canGenerate ? ' Press Calculate month.' : ''}</p>}

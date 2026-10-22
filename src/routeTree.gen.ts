@@ -14,8 +14,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppCustomersRouteImport } from './routes/_app/customers'
 import { Route as AppEmployeesRouteImport } from './routes/_app/employees'
 import { Route as AppMonthRouteImport } from './routes/_app/month'
+import { Route as AppPlansRouteImport } from './routes/_app/plans'
 import { Route as AppRatesRouteImport } from './routes/_app/rates'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppRequestsNewRouteImport } from './routes/_app/requests.new'
@@ -44,6 +46,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCustomersRoute = AppCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
   id: '/employees',
   path: '/employees',
@@ -52,6 +59,11 @@ const AppEmployeesRoute = AppEmployeesRouteImport.update({
 const AppMonthRoute = AppMonthRouteImport.update({
   id: '/month',
   path: '/month',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlansRoute = AppPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRatesRoute = AppRatesRouteImport.update({
@@ -75,8 +87,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/approvals': typeof AppApprovalsRoute
   '/audit': typeof AppAuditRoute
+  '/customers': typeof AppCustomersRoute
   '/employees': typeof AppEmployeesRoute
   '/month': typeof AppMonthRoute
+  '/plans': typeof AppPlansRoute
   '/rates': typeof AppRatesRoute
   '/today': typeof AppTodayRoute
   '/requests/new': typeof AppRequestsNewRoute
@@ -85,8 +99,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/approvals': typeof AppApprovalsRoute
   '/audit': typeof AppAuditRoute
+  '/customers': typeof AppCustomersRoute
   '/employees': typeof AppEmployeesRoute
   '/month': typeof AppMonthRoute
+  '/plans': typeof AppPlansRoute
   '/rates': typeof AppRatesRoute
   '/today': typeof AppTodayRoute
   '/': typeof AppIndexRoute
@@ -98,8 +114,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/approvals': typeof AppApprovalsRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/customers': typeof AppCustomersRoute
   '/_app/employees': typeof AppEmployeesRoute
   '/_app/month': typeof AppMonthRoute
+  '/_app/plans': typeof AppPlansRoute
   '/_app/rates': typeof AppRatesRoute
   '/_app/today': typeof AppTodayRoute
   '/_app/': typeof AppIndexRoute
@@ -112,8 +130,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/approvals'
     | '/audit'
+    | '/customers'
     | '/employees'
     | '/month'
+    | '/plans'
     | '/rates'
     | '/today'
     | '/requests/new'
@@ -122,8 +142,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/approvals'
     | '/audit'
+    | '/customers'
     | '/employees'
     | '/month'
+    | '/plans'
     | '/rates'
     | '/today'
     | '/'
@@ -134,8 +156,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/approvals'
     | '/_app/audit'
+    | '/_app/customers'
     | '/_app/employees'
     | '/_app/month'
+    | '/_app/plans'
     | '/_app/rates'
     | '/_app/today'
     | '/_app/'
@@ -184,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/customers': {
+      id: '/_app/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AppCustomersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/employees': {
       id: '/_app/employees'
       path: '/employees'
@@ -196,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/month'
       fullPath: '/month'
       preLoaderRoute: typeof AppMonthRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/plans': {
+      id: '/_app/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof AppPlansRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/rates': {
@@ -225,8 +263,10 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
+  AppCustomersRoute: typeof AppCustomersRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppMonthRoute: typeof AppMonthRoute
+  AppPlansRoute: typeof AppPlansRoute
   AppRatesRoute: typeof AppRatesRoute
   AppTodayRoute: typeof AppTodayRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -236,8 +276,10 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
+  AppCustomersRoute: AppCustomersRoute,
   AppEmployeesRoute: AppEmployeesRoute,
   AppMonthRoute: AppMonthRoute,
+  AppPlansRoute: AppPlansRoute,
   AppRatesRoute: AppRatesRoute,
   AppTodayRoute: AppTodayRoute,
   AppIndexRoute: AppIndexRoute,

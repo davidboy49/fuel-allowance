@@ -171,3 +171,37 @@ export async function routeKm(
   }
   return round2(total)
 }
+
+export interface PlanStopInput {
+  dayOfCycle: number
+  customerId: string
+  lat: number
+  lng: number
+}
+
+/**
+ * Planned km per stop for a journey plan: start point to the first customer, between
+ * customers in order, and the return leg to the start point added to the last stop of each day.
+ * Planned km is calculated from the customer pins, never typed.
+ */
+export async function planLegs(
+  start: LatLng,
+  stops: PlanStopInput[],
+  provider: RoadDistanceProvider = estimatedRoadDistance,
+): Promise<{ legKm: number[]; dayKm: Record<number, number> }> {
+  const legKm = new Array<number>(stops.length).fill(0)
+  const dayKm: Record<number, number> = {}
+  const days = [...new Set(stops.map((s) => s.dayOfCycle))].sort((a, b) => a - b)
+  for (const day of days) {
+    const idx = stops.map((s, i) => (s.dayOfCycle === day ? i : -1)).filter((i) => i >= 0)
+    let prev: LatLng = start
+    for (const i of idx) {
+      legKm[i] = round2(await provider.legKm(prev, stops[i]))
+      prev = stops[i]
+    }
+    const last = idx[idx.length - 1]
+    legKm[last] = round2(legKm[last] + (await provider.legKm(prev, start)))
+    dayKm[day] = round2(idx.reduce((sum, i) => sum + legKm[i], 0))
+  }
+  return { legKm, dayKm }
+}
