@@ -104,7 +104,7 @@ function AddEmployee() {
         <form className="grid gap-4 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); setDone(null); create.mutate() }}>
           <div className="grid gap-1.5"><Label htmlFor="e-code">Code</Label><Input id="e-code" value={code} onChange={(e) => setCode(e.target.value)} required /></div>
           <div className="grid gap-1.5"><Label htmlFor="e-name">Name</Label><Input id="e-name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
-          <div className="grid gap-1.5"><Label htmlFor="e-email">Work email</Label><Input id="e-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="grid gap-1.5"><Label htmlFor="e-email">Username or work email</Label><Input id="e-email" type="text" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="grid gap-1.5">
             <Label htmlFor="e-pos">Position</Label>
             <Select id="e-pos" value={position} onChange={(e) => setPosition(e.target.value as typeof position)}>

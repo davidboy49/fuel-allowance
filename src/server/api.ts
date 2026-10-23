@@ -29,7 +29,7 @@ export const loginFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const e = await prisma.employee.findUnique({ where: { email: data.email.trim().toLowerCase() } })
     if (!e || !e.active || !verifyPassword(data.password, e.passwordHash)) {
-      throw new Error('Wrong email or password')
+      throw new Error('Wrong username or password')
     }
     startSession(e.id)
     return { ok: true }

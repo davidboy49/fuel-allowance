@@ -3,7 +3,7 @@ import { PrismaClient } from '../src/generated/prisma/client.js'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { hashPassword } from '../src/server/auth.js'
 
-const email = process.env.ADMIN_EMAIL
+const email = process.env.ADMIN_EMAIL?.trim().toLowerCase()
 const password = process.env.ADMIN_PASSWORD
 if (!email || !password || password.length < 10) {
   console.error('Set ADMIN_EMAIL and ADMIN_PASSWORD (at least 10 characters).')

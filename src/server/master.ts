@@ -65,7 +65,7 @@ export const createEmployeeFn = createServerFn({ method: 'POST' })
     z.object({
       code: z.string().min(2),
       name: z.string().min(2),
-      email: z.string().email(),
+      email: z.string().trim().min(3, 'Username needs at least 3 characters').regex(/^\S+$/, 'No spaces in the username'),
       position: z.enum(ROLES),
       managerId: z.string().optional().nullable(),
       password: z.string().min(8, 'Password needs at least 8 characters'),
@@ -74,14 +74,14 @@ export const createEmployeeFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const u = await requireUser(['HR', 'ADMIN'])
     const dup = await prisma.employee.findFirst({
-      where: { OR: [{ code: data.code }, { email: data.email.toLowerCase() }] },
+      where: { OR: [{ code: data.code }, { email: data.email.trim().toLowerCase() }] },
     })
-    if (dup) throw new Error('That code or email is already used')
+    if (dup) throw new Error('That code or username is already used')
     const e = await prisma.employee.create({
       data: {
         code: data.code,
         name: data.name,
-        email: data.email.toLowerCase(),
+        email: data.email.trim().toLowerCase(),
         position: data.position,
         role: data.position,
         managerId: data.managerId || null,
