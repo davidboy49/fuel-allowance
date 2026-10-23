@@ -23,12 +23,20 @@ export const plansFn = createServerFn({ method: 'GET' }).handler(async () => {
   const approvals = await prisma.approval.findMany({
     where: { subjectType: 'PLAN', subjectId: { in: rows.map((r) => r.id) } },
   })
+  const today = localDate(new Date())
+  const starts = new Map<string, { lat: number; lng: number; name: string } | null>()
+  for (const id of new Set(rows.map((r) => r.employeeId))) {
+    const prof = await activeProfile(id, today)
+    const sp = prof?.startPointId ? await prisma.startPoint.findUnique({ where: { id: prof.startPointId } }) : null
+    starts.set(id, sp ? { lat: sp.lat, lng: sp.lng, name: sp.name } : null)
+  }
   return rows.map((p) => {
-    const days = new Map<number, { km: number; stops: string[] }>()
+    const days = new Map<number, { km: number; stops: string[]; points: Array<{ name: string; lat: number | null; lng: number | null }> }>()
     for (const s of p.stops) {
-      const d = days.get(s.dayOfCycle) ?? { km: 0, stops: [] }
+      const d = days.get(s.dayOfCycle) ?? { km: 0, stops: [], points: [] }
       d.km += s.plannedLegKm
       d.stops.push(s.customer.name)
+      d.points.push({ name: s.customer.name, lat: s.customer.lat, lng: s.customer.lng })
       days.set(s.dayOfCycle, d)
     }
     const step = approvals.find((a) => a.subjectId === p.id && a.decision === null)
@@ -42,7 +50,8 @@ export const plansFn = createServerFn({ method: 'GET' }).handler(async () => {
       status: p.status,
       validFrom: p.validFrom.toISOString().slice(0, 10),
       weeklyKm: Math.round([...days.values()].reduce((s, d) => s + d.km, 0) * 10) / 10,
-      days: [...days.entries()].map(([day, d]) => ({ day, km: Math.round(d.km * 10) / 10, stops: d.stops })),
+      start: starts.get(p.employeeId) ?? null,
+      days: [...days.entries()].map(([day, d]) => ({ day, km: Math.round(d.km * 10) / 10, stops: d.stops, points: d.points })),
       canDecide: p.status === 'SUBMITTED' && !!step && mine,
     }
   })

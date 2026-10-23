@@ -49,3 +49,8 @@ npm run test:e2e         # reseeds the database, so use a throwaway one; set CHR
 - Journey plans have an editor and RSM approval; there is no map view yet and planned km uses the same estimated road distance.
 - Amounts are stored as floats in USD; switch to integer cents or Decimal before payroll integration.
 - Approval chain per position and the 15% tolerance are suggestions, not signed-off policy.
+
+## Phase 3: maps and Khmer
+
+- Maps use Leaflet on OpenStreetMap tiles (`src/components/MapView.tsx`): customer pins (click the map to fill coordinates), the route of each journey plan day, and today's stops with geofence circles on the rep screen. Tiles need internet; swap the tile URL for a paid provider before heavy use.
+- Language: English and Khmer, switch in the sidebar, top bar or login card. Stored in the `fa_lang` cookie. Strings live in `src/lib/i18n.ts` (a unit test checks every key exists in both languages). Translated so far: login, navigation, the rep Today screen and the Month screen. The Khmer text is a first draft and needs review by a native speaker.
