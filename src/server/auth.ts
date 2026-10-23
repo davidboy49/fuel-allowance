@@ -7,7 +7,10 @@ const COOKIE = 'fa_session'
 const MAX_AGE = 60 * 60 * 24 * 14
 
 function secret() {
-  return process.env.SESSION_SECRET || 'dev-only-secret-change-me'
+  const value = process.env.SESSION_SECRET
+  if (value) return value
+  if (process.env.NODE_ENV === 'production') throw new Error('SESSION_SECRET must be set in production')
+  return 'dev-only-secret-change-me'
 }
 
 export function hashPassword(password: string): string {
