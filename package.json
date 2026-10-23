@@ -20,7 +20,8 @@
     "check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "start": "node .output/server/index.mjs"
+    "start": "node .output/server/index.mjs",
+    "bootstrap": "tsx prisma/bootstrap.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",
