@@ -1,4 +1,4 @@
-import { Link, Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, redirect, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
 import { ClipboardCheck, Fuel, History, LogOut, MapPin, PlusCircle, ReceiptText, Route as RouteIcon, Store, Tag, Users } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -9,10 +9,21 @@ import { useT } from '#/lib/useT'
 import type { MessageKey } from '#/lib/i18n'
 import { LangSwitch } from '#/components/LangSwitch'
 
+const ME_KEY = ['me']
+const ME_TTL_MS = 60_000
+
 export const Route = createFileRoute('/_app')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ context }) => {
+    // Re-check the session at most once a minute; otherwise every sidebar click waits for a server round trip.
+    const cached = context.queryClient.getQueryData<Awaited<ReturnType<typeof meFn>>>(ME_KEY)
+    const fresh = Date.now() - (context.queryClient.getQueryState(ME_KEY)?.dataUpdatedAt ?? 0) < ME_TTL_MS
+    if (cached && fresh) return { user: cached }
     const user = await meFn()
-    if (!user) throw redirect({ to: '/login' })
+    if (!user) {
+      context.queryClient.removeQueries({ queryKey: ME_KEY })
+      throw redirect({ to: '/login' })
+    }
+    context.queryClient.setQueryData(ME_KEY, user)
     return { user }
   },
   component: Shell,
@@ -41,15 +52,21 @@ function Shell() {
   const { user } = Route.useRouteContext()
   const t = useT()
   const navigate = useNavigate()
+  const { queryClient } = Route.useRouteContext()
+  const loading = useRouterState({ select: (s) => s.isLoading || s.status === 'pending' })
   const logout = useMutation({
     mutationFn: () => logoutFn(),
-    onSuccess: () => navigate({ to: '/login' }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ME_KEY })
+      navigate({ to: '/login' })
+    },
   })
   const items = NAV.filter((n) => n.roles.includes(user.role))
   const field = ['SR', 'ASM', 'OM'].includes(user.role)
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
+      {loading && <div role="progressbar" aria-label="Loading" className="fixed inset-x-0 top-0 z-50 h-1 animate-pulse bg-primary" />}
       <aside className="hidden border-r bg-card md:flex md:flex-col">
         <div className="flex items-center gap-2 px-5 py-4 font-semibold">
           <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
