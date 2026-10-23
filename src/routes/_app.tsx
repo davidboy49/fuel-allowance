@@ -1,10 +1,13 @@
 import { Link, Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
-import { ClipboardCheck, Fuel, History, LogOut, MapPin, PlusCircle, ReceiptText, Tag, Users } from 'lucide-react'
+import { ClipboardCheck, Fuel, History, LogOut, MapPin, PlusCircle, ReceiptText, Route as RouteIcon, Store, Tag, Users } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { logoutFn, meFn } from '#/server/api'
 import { ROLE_LABELS } from '#/lib/format'
 import { cn } from '#/lib/utils'
+import { useT } from '#/lib/useT'
+import type { MessageKey } from '#/lib/i18n'
+import { LangSwitch } from '#/components/LangSwitch'
 
 export const Route = createFileRoute('/_app')({
   beforeLoad: async () => {
@@ -17,23 +20,26 @@ export const Route = createFileRoute('/_app')({
 
 interface NavItem {
   to: string
-  label: string
+  label: MessageKey
   icon: ComponentType<{ className?: string }>
   roles: string[]
 }
 
 const NAV: NavItem[] = [
-  { to: '/today', label: 'Today', icon: MapPin, roles: ['SR', 'ASM', 'OM'] },
-  { to: '/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
-  { to: '/month', label: 'Month', icon: ReceiptText, roles: ['SR', 'ASM', 'OM', 'RSM', 'NSM', 'HR', 'FIN', 'ADMIN'] },
-  { to: '/requests/new', label: 'New request', icon: PlusCircle, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
-  { to: '/employees', label: 'Employees', icon: Users, roles: ['RSM', 'NSM', 'HR', 'ADMIN', 'FIN'] },
-  { to: '/rates', label: 'Rates', icon: Tag, roles: ['HR', 'FIN', 'ADMIN', 'NSM', 'RSM'] },
-  { to: '/audit', label: 'Audit log', icon: History, roles: ['HR', 'FIN', 'ADMIN'] },
+  { to: '/today', label: 'nav.today', icon: MapPin, roles: ['SR', 'ASM', 'OM'] },
+  { to: '/approvals', label: 'nav.approvals', icon: ClipboardCheck, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/month', label: 'nav.month', icon: ReceiptText, roles: ['SR', 'ASM', 'OM', 'RSM', 'NSM', 'HR', 'FIN', 'ADMIN'] },
+  { to: '/requests/new', label: 'nav.newRequest', icon: PlusCircle, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/plans', label: 'nav.plans', icon: RouteIcon, roles: ['SR', 'ASM', 'OM', 'RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/customers', label: 'nav.customers', icon: Store, roles: ['RSM', 'NSM', 'HR', 'ADMIN'] },
+  { to: '/employees', label: 'nav.employees', icon: Users, roles: ['RSM', 'NSM', 'HR', 'ADMIN', 'FIN'] },
+  { to: '/rates', label: 'nav.rates', icon: Tag, roles: ['HR', 'FIN', 'ADMIN', 'NSM', 'RSM'] },
+  { to: '/audit', label: 'nav.audit', icon: History, roles: ['HR', 'FIN', 'ADMIN'] },
 ]
 
 function Shell() {
   const { user } = Route.useRouteContext()
+  const t = useT()
   const navigate = useNavigate()
   const logout = useMutation({
     mutationFn: () => logoutFn(),
@@ -49,7 +55,7 @@ function Shell() {
           <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
             <Fuel className="size-4" />
           </span>
-          Fuel Allowance
+          {t('app.name')}
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {items.map((n) => (
@@ -60,7 +66,7 @@ function Shell() {
               activeProps={{ className: 'bg-accent text-accent-foreground font-medium' }}
             >
               <n.icon className="size-4" />
-              {n.label}
+              {t(n.label)}
             </Link>
           ))}
         </nav>
@@ -71,19 +77,23 @@ function Shell() {
             onClick={() => logout.mutate()}
             className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            <LogOut className="size-3.5" /> Sign out
+            <LogOut className="size-3.5" /> {t('common.signOut')}
           </button>
+          <LangSwitch className="mt-3" />
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-col">
         <header className="flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
           <span className="flex items-center gap-2 font-semibold">
-            <Fuel className="size-4 text-primary" /> Fuel Allowance
+            <Fuel className="size-4 text-primary" /> {t('app.name')}
           </span>
-          <button onClick={() => logout.mutate()} aria-label="Sign out" className="p-2 text-muted-foreground">
-            <LogOut className="size-4" />
-          </button>
+          <span className="flex items-center gap-2">
+            <LangSwitch />
+            <button onClick={() => logout.mutate()} aria-label={t('common.signOut')} className="p-2 text-muted-foreground">
+              <LogOut className="size-4" />
+            </button>
+          </span>
         </header>
         <main className={cn('mx-auto w-full max-w-5xl flex-1 p-4 md:p-8', field && 'pb-24 md:pb-8')}>
           <Outlet />
@@ -97,7 +107,7 @@ function Shell() {
               activeProps={{ className: 'text-primary font-medium' }}
             >
               <n.icon className="size-5" />
-              {n.label}
+              {t(n.label)}
             </Link>
           ))}
         </nav>

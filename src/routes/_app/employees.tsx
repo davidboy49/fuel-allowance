@@ -1,15 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { employeesFn, profileHistoryFn } from '#/server/api'
-import { Card, CardContent } from '#/components/ui/card'
-import { Input } from '#/components/ui/input'
+import { createEmployeeFn, managersFn } from '#/server/master'
+import { ROLES } from '#/lib/constants'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Input, Label, Select } from '#/components/ui/input'
 import { Table, Tbody, Td, Th, Thead, Tr } from '#/components/ui/table'
-import { km, money } from '#/lib/format'
+import { ROLE_LABELS, errMsg, km, money } from '#/lib/format'
 
 export const Route = createFileRoute('/_app/employees')({ component: Employees })
 
 function Employees() {
+  const { user } = Route.useRouteContext()
   const list = useQuery({ queryKey: ['employees'], queryFn: () => employeesFn() })
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -24,6 +28,7 @@ function Employees() {
         </div>
         <Input aria-label="Search" placeholder="Search name or code" value={q} onChange={(e) => setQ(e.target.value)} className="w-56" />
       </div>
+      {['HR', 'ADMIN'].includes(user.role) && <AddEmployee />}
       <Card>
         <CardContent className="pt-5">
           <Table>
@@ -70,5 +75,57 @@ function History({ employeeId }: { employeeId: string }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+function AddEmployee() {
+  const qc = useQueryClient()
+  const managers = useQuery({ queryKey: ['managers'], queryFn: () => managersFn() })
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [position, setPosition] = useState<(typeof ROLES)[number]>('SR')
+  const [managerId, setManagerId] = useState('')
+  const [password, setPassword] = useState('')
+  const [done, setDone] = useState<string | null>(null)
+  const create = useMutation({
+    mutationFn: () => createEmployeeFn({ data: { code, name, email, position, managerId: managerId || null, password } }),
+    onSuccess: (r) => {
+      setDone(r.eligible ? `Added ${name}. Create an allowance request to give them an allowance.` : `Added ${name}.`)
+      setCode(''); setName(''); setEmail(''); setPassword('')
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      qc.invalidateQueries({ queryKey: ['managers'] })
+    },
+  })
+  return (
+    <Card>
+      <CardHeader><CardTitle>Add an employee</CardTitle></CardHeader>
+      <CardContent>
+        <form className="grid gap-4 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); setDone(null); create.mutate() }}>
+          <div className="grid gap-1.5"><Label htmlFor="e-code">Code</Label><Input id="e-code" value={code} onChange={(e) => setCode(e.target.value)} required /></div>
+          <div className="grid gap-1.5"><Label htmlFor="e-name">Name</Label><Input id="e-name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
+          <div className="grid gap-1.5"><Label htmlFor="e-email">Work email</Label><Input id="e-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="e-pos">Position</Label>
+            <Select id="e-pos" value={position} onChange={(e) => setPosition(e.target.value as typeof position)}>
+              {ROLES.map((r) => <option key={r} value={r}>{r} - {ROLE_LABELS[r]}</option>)}
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="e-mgr">Reports to</Label>
+            <Select id="e-mgr" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+              <option value="">Nobody</option>
+              {managers.data?.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.position})</option>)}
+            </Select>
+          </div>
+          <div className="grid gap-1.5"><Label htmlFor="e-pw">Starting password</Label><Input id="e-pw" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+          <div className="sm:col-span-3">
+            <Button type="submit" disabled={create.isPending}>Add employee</Button>
+            {create.error && <p role="alert" className="mt-3 text-sm text-destructive">{errMsg(create.error)}</p>}
+            {done && <p role="status" className="mt-3 text-sm text-success">{done}</p>}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

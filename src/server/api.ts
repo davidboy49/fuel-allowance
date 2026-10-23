@@ -308,12 +308,17 @@ export const todayFn = createServerFn({ method: 'GET' }).handler(async () => {
       .map((s) => ({
         id: s.customer.id,
         name: s.customer.name,
+        lat: s.customer.lat,
+        lng: s.customer.lng,
+        geofenceM: s.customer.geofenceM,
         visited: checkins.some((c) => c.type === 'VISIT' && c.customerId === s.customer.id),
       })),
     checkins: checkins.map((c) => ({
       id: c.id,
       type: c.type,
       customer: c.customer?.name ?? null,
+      lat: c.lat,
+      lng: c.lng,
       time: c.gpsTime.toISOString(),
       flags: c.flags ? (JSON.parse(c.flags) as string[]) : [],
     })),
@@ -575,3 +580,28 @@ export const auditFn = createServerFn({ method: 'GET' }).handler(async () => {
   const names = new Map((await prisma.employee.findMany({ select: { id: true, name: true } })).map((e) => [e.id, e.name]))
   return rows.map((r) => ({ id: r.id, at: r.at.toISOString(), actor: names.get(r.actorId) ?? r.actorId, entity: r.entity, action: r.action }))
 })
+
+function csvCell(v: string | number) {
+  const t = String(v)
+  return /[",\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t
+}
+
+/** Approved statements for a month as a CSV Finance can import into payroll. */
+export const payrollCsvFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }))
+  .handler(async ({ data }) => {
+    const u = await requireUser(['FIN', 'HR', 'ADMIN'])
+    const rows = await prisma.monthlyStatement.findMany({
+      where: { month: data.month, status: { in: ['RSM_APPROVED', 'PAID'] } },
+      include: { employee: true },
+      orderBy: { employee: { code: 'asc' } },
+    })
+    const head = ['employee_code', 'employee_name', 'month', 'approved_km', 'vehicle_allowance', 'petrol_amount', 'adjustments', 'total', 'status']
+    const lines = rows.map((r) =>
+      [r.employee.code, r.employee.name, r.month, r.approvedKm, r.vehicleAllowance, r.petrolAmount, r.adjustments, r.total, r.status]
+        .map(csvCell)
+        .join(','),
+    )
+    await audit(u.id, 'MonthlyStatement', data.month, 'EXPORT', { rows: rows.length })
+    return { filename: `fuel-allowance-${data.month}.csv`, csv: [head.join(','), ...lines].join('\n'), rows: rows.length }
+  })
