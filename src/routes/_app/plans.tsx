@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { MapView, type MapMarker } from '#/components/MapView'
 import { ArrowDown, ArrowUp, Check, Plus, X } from 'lucide-react'
 import { decidePlanFn, planEditorDataFn, plansFn, savePlanFn } from '#/server/plans'
 import { Badge, statusTone } from '#/components/ui/badge'
@@ -52,6 +53,20 @@ function PlanCard({ plan }: { plan: PlanRow }) {
   const qc = useQueryClient()
   const [comment, setComment] = useState('')
   const [asking, setAsking] = useState(false)
+  const [showMap, setShowMap] = useState(false)
+  const [mapDay, setMapDay] = useState(plan.days[0]?.day ?? 1)
+  const day = plan.days.find((d) => d.day === mapDay) ?? plan.days[0]
+  const { markers, line } = useMemo(() => {
+    const pts = (day?.points ?? []).filter((p) => p.lat != null && p.lng != null)
+    const mk: MapMarker[] = pts.map((p, i) => ({ id: `${i}`, lat: p.lat!, lng: p.lng!, label: p.name, number: i + 1 }))
+    const route: Array<[number, number]> = pts.map((p) => [p.lat!, p.lng!])
+    if (plan.start) {
+      mk.unshift({ id: 'start', lat: plan.start.lat, lng: plan.start.lng, label: plan.start.name, tone: 'start' })
+      route.unshift([plan.start.lat, plan.start.lng])
+      route.push([plan.start.lat, plan.start.lng])
+    }
+    return { markers: mk, line: route }
+  }, [day, plan.start])
   const m = useMutation({
     mutationFn: (decision: 'APPROVED' | 'REJECTED') =>
       decidePlanFn({ data: { id: plan.id, decision, comment: comment || undefined } }),
@@ -84,6 +99,21 @@ function PlanCard({ plan }: { plan: PlanRow }) {
             </div>
           ))}
         </div>
+        {plan.days.length > 0 && (
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" aria-expanded={showMap} onClick={() => setShowMap((v) => !v)}>
+                {showMap ? 'Hide map' : 'Show route on map'}
+              </Button>
+              {showMap && plan.days.map((d) => (
+                <Button key={d.day} size="sm" variant={d.day === mapDay ? 'default' : 'ghost'} onClick={() => setMapDay(d.day)}>
+                  Day {d.day}
+                </Button>
+              ))}
+            </div>
+            {showMap && <MapView label={`Route map for ${plan.employee}, day ${mapDay}`} markers={markers} line={line} height={300} />}
+          </div>
+        )}
         {plan.canDecide && (
           <div className="flex flex-wrap items-center gap-2">
             {asking && (

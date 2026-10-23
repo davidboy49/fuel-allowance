@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { MapView, type MapMarker } from '#/components/MapView'
 import { BadgeCheck } from 'lucide-react'
 import { customerListFn, saveCustomerFn, verifyCustomerFn } from '#/server/master'
 import { Badge } from '#/components/ui/badge'
@@ -34,6 +35,17 @@ function Customers() {
     },
   })
 
+  const markers = useMemo<MapMarker[]>(() => {
+    const pins: MapMarker[] = (list.data ?? [])
+      .filter((c) => c.lat != null && c.lng != null)
+      .map((c) => ({ id: c.id, lat: c.lat!, lng: c.lng!, label: c.name, tone: c.verified ? 'good' : 'wait' }))
+    if (lat && lng && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
+      pins.push({ id: 'new', lat: Number(lat), lng: Number(lng), label: 'New pin', tone: 'primary' })
+    }
+    return pins
+  }, [list.data, lat, lng])
+  const radii = useMemo(() => Object.fromEntries((list.data ?? []).map((c) => [c.id, c.geofenceM])), [list.data])
+
   return (
     <div className="grid gap-4">
       <div>
@@ -42,6 +54,21 @@ function Customers() {
           Check-ins only count inside a customer's radius. A new or moved pin must be verified by the RSM before reps rely on it.
         </p>
       </div>
+
+      <Card>
+        <CardContent className="grid gap-2 pt-5">
+          <MapView
+            label="Customer pins map"
+            markers={markers}
+            radiusM={radii}
+            height={320}
+            onPick={canEdit ? (a, b) => { setLat(a.toFixed(6)); setLng(b.toFixed(6)) } : undefined}
+          />
+          <p className="text-xs text-muted-foreground">
+            Green pins are verified, amber are waiting for an RSM.{canEdit ? ' Click the map to fill in the coordinates for a new customer.' : ''}
+          </p>
+        </CardContent>
+      </Card>
 
       {canEdit && (
         <Card>

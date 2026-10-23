@@ -1,0 +1,7 @@
+node_modules
+.output
+*.db
+.env*
+test-results
+e2e
+.git

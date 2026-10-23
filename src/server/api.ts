@@ -308,12 +308,17 @@ export const todayFn = createServerFn({ method: 'GET' }).handler(async () => {
       .map((s) => ({
         id: s.customer.id,
         name: s.customer.name,
+        lat: s.customer.lat,
+        lng: s.customer.lng,
+        geofenceM: s.customer.geofenceM,
         visited: checkins.some((c) => c.type === 'VISIT' && c.customerId === s.customer.id),
       })),
     checkins: checkins.map((c) => ({
       id: c.id,
       type: c.type,
       customer: c.customer?.name ?? null,
+      lat: c.lat,
+      lng: c.lng,
       time: c.gpsTime.toISOString(),
       flags: c.flags ? (JSON.parse(c.flags) as string[]) : [],
     })),
