@@ -78,9 +78,20 @@ function History({ employeeId }: { employeeId: string }) {
   )
 }
 
+type Mode = 'NEW' | 'COPY' | 'COPY_DISABLE'
+
+const MODE_LABELS: Record<Mode, string> = {
+  NEW: 'Create brand new',
+  COPY: 'Copy / clone (keep the old user)',
+  COPY_DISABLE: 'Copy and disable the old user',
+}
+
 function AddEmployee() {
   const qc = useQueryClient()
   const managers = useQuery({ queryKey: ['managers'], queryFn: () => managersFn() })
+  const people = useQuery({ queryKey: ['employees'], queryFn: () => employeesFn() })
+  const [mode, setMode] = useState<Mode>('NEW')
+  const [sourceId, setSourceId] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -88,11 +99,34 @@ function AddEmployee() {
   const [managerId, setManagerId] = useState('')
   const [password, setPassword] = useState('')
   const [done, setDone] = useState<string | null>(null)
+  const source = people.data?.find((p) => p.id === sourceId)
+  const copying = mode !== 'NEW'
+
+  const pickSource = (id: string) => {
+    setSourceId(id)
+    const p = people.data?.find((x) => x.id === id)
+    if (p) {
+      setPosition(p.position as typeof position)
+      setManagerId(p.managerId ?? '')
+    }
+  }
   const create = useMutation({
-    mutationFn: () => createEmployeeFn({ data: { code, name, email, position, managerId: managerId || null, password } }),
+    mutationFn: () =>
+      createEmployeeFn({
+        data: {
+          code, name, email, position, managerId: managerId || null, password,
+          cloneFromId: copying ? sourceId : null,
+          disableSource: mode === 'COPY_DISABLE',
+        },
+      }),
     onSuccess: (r) => {
-      setDone(r.eligible ? `Added ${name}. Create an allowance request to give them an allowance.` : `Added ${name}.`)
-      setCode(''); setName(''); setEmail(''); setPassword('')
+      const parts = [`Added ${name}.`]
+      if (r.copiedAllowance) parts.push(`The allowance of ${source?.name} was sent for approval in their name.`)
+      else if (copying) parts.push(`${source?.name} has no current allowance to copy.`)
+      else if (r.eligible) parts.push('Create an allowance request to give them an allowance.')
+      if (r.disabledOld) parts.push(`${source?.name} is disabled and their team now reports to ${name}.`)
+      setDone(parts.join(' '))
+      setCode(''); setName(''); setEmail(''); setPassword(''); setSourceId(''); setMode('NEW')
       qc.invalidateQueries({ queryKey: ['employees'] })
       qc.invalidateQueries({ queryKey: ['managers'] })
     },
@@ -102,9 +136,32 @@ function AddEmployee() {
       <CardHeader><CardTitle>Add an employee</CardTitle></CardHeader>
       <CardContent>
         <form className="grid gap-4 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); setDone(null); create.mutate() }}>
+          <div className="grid gap-1.5">
+            <Label htmlFor="e-mode">How</Label>
+            <Select id="e-mode" value={mode} onChange={(e) => { setMode(e.target.value as Mode); if (e.target.value === 'NEW') setSourceId('') }}>
+              {(Object.keys(MODE_LABELS) as Mode[]).map((m) => <option key={m} value={m}>{MODE_LABELS[m]}</option>)}
+            </Select>
+          </div>
+          {copying && (
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="e-src">Copy from</Label>
+              <Select id="e-src" value={sourceId} onChange={(e) => pickSource(e.target.value)} required>
+                <option value="">Choose a person</option>
+                {people.data?.map((p) => <option key={p.id} value={p.id}>{p.code} - {p.name} ({p.position})</option>)}
+              </Select>
+              {source && (
+                <p className="text-xs text-muted-foreground">
+                  {source.vehicleClass
+                    ? `Copies ${source.vehicleClass === 'MOTOR' ? 'motor' : 'car'}, ${money(source.vehicleAllowance)} vehicle allowance, ${km(source.baselineKmMonth ?? 0)}/mo baseline, ${source.tolerancePct}% tolerance, territory and start point, position and manager. The allowance goes through approval as a replacement request.`
+                    : 'Copies position and manager. This person has no current allowance.'}
+                  {mode === 'COPY_DISABLE' && ' The old user is disabled now and their direct reports move to the new person.'}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid gap-1.5"><Label htmlFor="e-code">Code</Label><Input id="e-code" value={code} onChange={(e) => setCode(e.target.value)} required /></div>
           <div className="grid gap-1.5"><Label htmlFor="e-name">Name</Label><Input id="e-name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
-          <div className="grid gap-1.5"><Label htmlFor="e-email">Work email</Label><Input id="e-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="grid gap-1.5"><Label htmlFor="e-email">Username or work email</Label><Input id="e-email" type="text" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="grid gap-1.5">
             <Label htmlFor="e-pos">Position</Label>
             <Select id="e-pos" value={position} onChange={(e) => setPosition(e.target.value as typeof position)}>
@@ -120,7 +177,9 @@ function AddEmployee() {
           </div>
           <div className="grid gap-1.5"><Label htmlFor="e-pw">Starting password</Label><Input id="e-pw" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
           <div className="sm:col-span-3">
-            <Button type="submit" disabled={create.isPending}>Add employee</Button>
+            <Button type="submit" disabled={create.isPending || (copying && !sourceId)}>
+              {mode === 'COPY_DISABLE' ? 'Add employee and disable old user' : copying ? 'Add copy' : 'Add employee'}
+            </Button>
             {create.error && <p role="alert" className="mt-3 text-sm text-destructive">{errMsg(create.error)}</p>}
             {done && <p role="status" className="mt-3 text-sm text-success">{done}</p>}
           </div>

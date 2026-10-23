@@ -48,7 +48,7 @@ function Login() {
           >
             <div className="grid gap-1.5">
               <Label htmlFor="email">{t('login.email')}</Label>
-              <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="password">{t('login.password')}</Label>
