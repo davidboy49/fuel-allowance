@@ -56,6 +56,7 @@ export const employeesFn = createServerFn({ method: 'GET' }).handler(async () =>
       code: e.code,
       name: e.name,
       position: e.position,
+      managerId: e.managerId,
       vehicleClass: p?.vehicleClass ?? null,
       vehicleAllowance: p?.vehicleAllowance ?? null,
       baselineKmMonth: p?.baselineKmMonth ?? null,

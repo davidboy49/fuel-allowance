@@ -1,8 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { prisma } from '#/db'
-import { ELIGIBLE_POSITIONS, ROLES } from '#/lib/constants'
+import { ELIGIBLE_POSITIONS, ROLES, approvalChain } from '#/lib/constants'
 import { audit, hashPassword, requireUser } from './auth'
+import { activeProfile, localDate } from './distance'
 
 const MANAGE = ['RSM', 'HR', 'ADMIN', 'NSM'] as const
 
@@ -69,27 +70,84 @@ export const createEmployeeFn = createServerFn({ method: 'POST' })
       position: z.enum(ROLES),
       managerId: z.string().optional().nullable(),
       password: z.string().min(8, 'Password needs at least 8 characters'),
+      /** Copy: the person being replaced. Their current allowance goes to the new person as a request. */
+      cloneFromId: z.string().optional().nullable(),
+      /** With cloneFromId: also deactivate the old person and hand their team to the new one. */
+      disableSource: z.boolean().optional(),
     }),
   )
   .handler(async ({ data }) => {
     const u = await requireUser(['HR', 'ADMIN'])
+    if (data.disableSource && !data.cloneFromId) throw new Error('Choose who to copy from')
+    const source = data.cloneFromId ? await prisma.employee.findUnique({ where: { id: data.cloneFromId } }) : null
+    if (data.cloneFromId && (!source || !source.active)) throw new Error('The person to copy from was not found or is already disabled')
+    const today = localDate(new Date())
+    const sourceProfile = source ? await activeProfile(source.id, today) : null
     const dup = await prisma.employee.findFirst({
       where: { OR: [{ code: data.code }, { email: data.email.trim().toLowerCase() }] },
     })
     if (dup) throw new Error('That code or username is already used')
-    const e = await prisma.employee.create({
-      data: {
-        code: data.code,
-        name: data.name,
-        email: data.email.trim().toLowerCase(),
-        position: data.position,
-        role: data.position,
-        managerId: data.managerId || null,
-        passwordHash: hashPassword(data.password),
-      },
+    const email = data.email.trim().toLowerCase()
+    let requestId: string | null = null
+    const e = await prisma.$transaction(async (tx) => {
+      const created = await tx.employee.create({
+        data: {
+          code: data.code,
+          name: data.name,
+          email,
+          position: data.position,
+          role: data.position,
+          managerId: data.managerId || null,
+          passwordHash: hashPassword(data.password),
+        },
+      })
+      if (source && sourceProfile) {
+        // Allowance changes still go through the normal approval chain; approval also ends the old person's allowance.
+        const req = await tx.allowanceRequest.create({
+          data: {
+            employeeId: created.id,
+            actionType: 'NEW',
+            replacementOfId: source.id,
+            clonedFromProfileId: sourceProfile.id,
+            vehicleClass: sourceProfile.vehicleClass,
+            vehicleAllowance: sourceProfile.vehicleAllowance,
+            baselineKmMonth: sourceProfile.baselineKmMonth,
+            tolerancePct: sourceProfile.tolerancePct,
+            territoryId: sourceProfile.territoryId,
+            startPointId: sourceProfile.startPointId,
+            effectiveFrom: new Date(`${today}T00:00:00Z`),
+            reason: `Replaces ${source.name} (${source.code}), same allowance`,
+            status: 'SUBMITTED',
+            createdById: u.id,
+            approvals: {
+              create: approvalChain(created.position).map((role, i) => ({
+                subjectType: 'REQUEST',
+                subjectId: 'pending',
+                step: i,
+                approverRole: role,
+              })),
+            },
+          },
+        })
+        await tx.approval.updateMany({ where: { requestId: req.id }, data: { subjectId: req.id } })
+        requestId = req.id
+      }
+      if (source && data.disableSource) {
+        await tx.employee.updateMany({ where: { managerId: source.id, id: { not: created.id } }, data: { managerId: created.id } })
+        await tx.employee.update({ where: { id: source.id }, data: { active: false } })
+      }
+      return created
     })
-    await audit(u.id, 'Employee', e.id, 'CREATE', { code: data.code, position: data.position })
-    return { id: e.id, eligible: (ELIGIBLE_POSITIONS as readonly string[]).includes(data.position) }
+    // audit writes use the shared connection, so they run after the transaction has committed
+    if (requestId) await audit(u.id, 'AllowanceRequest', requestId, 'SUBMIT', { clonedFrom: source?.code })
+    if (source && data.disableSource) await audit(u.id, 'Employee', source.id, 'DISABLE', { replacedBy: data.code })
+    await audit(u.id, 'Employee', e.id, 'CREATE', { code: data.code, position: data.position, clonedFrom: source?.code ?? null })
+    return {
+      id: e.id,
+      eligible: (ELIGIBLE_POSITIONS as readonly string[]).includes(data.position),
+      copiedAllowance: !!(source && sourceProfile),
+      disabledOld: !!(source && data.disableSource),
+    }
   })
 
 export const resetPasswordFn = createServerFn({ method: 'POST' })
