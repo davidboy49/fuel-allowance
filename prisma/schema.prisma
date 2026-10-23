@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Status and type columns are plain strings (validated with Zod in src/lib/constants.ts)
+// so the same schema works on SQLite now and PostgreSQL later.
+
+model Employee {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  position     String // NSM | RSM | OM | ASM | SR | HR | FIN | ADMIN
+  role         String // access role, same set as position
+  managerId    String?
+  manager      Employee?  @relation("Reports", fields: [managerId], references: [id])
+  reports      Employee[] @relation("Reports")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  profiles    AllowanceProfile[]
+  requests    AllowanceRequest[] @relation("RequestSubject")
+  plans       JourneyPlan[]
+  checkins    Checkin[]
+  daily       DailyDistance[]
+  statements  MonthlyStatement[]
+}
+
+model Territory {
+  id       String @id @default(cuid())
+  name     String @unique
+  profiles AllowanceProfile[]
+}
+
+model StartPoint {
+  id       String @id @default(cuid())
+  name     String @unique
+  lat      Float
+  lng      Float
+  profiles AllowanceProfile[]
+}
+
+model AllowanceProfile {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id])
+  territoryId      String?
+  territory        Territory? @relation(fields: [territoryId], references: [id])
+  startPointId     String?
+  startPoint       StartPoint? @relation(fields: [startPointId], references: [id])
+  vehicleClass     String // MOTOR | CAR
+  vehicleAllowance Float    @default(0)
+  baselineKmMonth  Float    @default(0)
+  tolerancePct     Float    @default(15)
+  validFrom        DateTime
+  validTo          DateTime?
+  requestId        String?  @unique
+  request          AllowanceRequest? @relation("RequestResult", fields: [requestId], references: [id])
+
+  @@index([employeeId, validFrom])
+}
+
+model AllowanceRequest {
+  id                  String   @id @default(cuid())
+  employeeId          String
+  employee            Employee @relation("RequestSubject", fields: [employeeId], references: [id])
+  actionType          String // NEW | INCREASE | DECREASE | TO_MOTOR | TO_CAR
+  replacementOfId     String? // employee being replaced (clone)
+  clonedFromProfileId String?
+  vehicleClass        String
+  vehicleAllowance    Float
+  baselineKmMonth     Float
+  tolerancePct        Float    @default(15)
+  territoryId         String?
+  startPointId        String?
+  effectiveFrom       DateTime
+  reason              String
+  status              String // DRAFT | SUBMITTED | APPROVED | REJECTED
+  currentStep         Int      @default(0)
+  createdById         String
+  createdAt           DateTime @default(now())
+
+  approvals Approval[]
+  result    AllowanceProfile? @relation("RequestResult")
+}
+
+model Approval {
+  id          String   @id @default(cuid())
+  subjectType String // REQUEST | EXCEPTION | STATEMENT | PLAN
+  subjectId   String
+  step        Int
+  approverRole String // role that must decide this step
+  approverId  String?
+  decision    String? // APPROVED | ADJUSTED | REJECTED
+  comment     String?
+  decidedAt   DateTime?
+  requestId   String?
+  request     AllowanceRequest? @relation(fields: [requestId], references: [id])
+  exceptionId String?
+  exception   DistanceException? @relation(fields: [exceptionId], references: [id])
+
+  @@index([subjectType, subjectId])
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  lat        Float?
+  lng        Float?
+  geofenceM  Int      @default(150)
+  verifiedBy String?
+  verifiedAt DateTime?
+  stops      PlanStop[]
+  checkins   Checkin[]
+}
+
+model JourneyPlan {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  version    Int
+  cycleDays  Int      @default(7)
+  status     String // DRAFT | SUBMITTED | APPROVED | RETIRED
+  validFrom  DateTime
+  validTo    DateTime?
+  stops      PlanStop[]
+
+  @@unique([employeeId, version])
+}
+
+model PlanStop {
+  id           String      @id @default(cuid())
+  planId       String
+  plan         JourneyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayOfCycle   Int // 1..cycleDays
+  sequence     Int
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  plannedLegKm Float       @default(0)
+}
+
+model Rate {
+  id           String   @id @default(cuid())
+  vehicleClass String // MOTOR | CAR
+  fuelPrice    Float // per litre
+  kmPerLitre   Float
+  ratePerKm    Float
+  validFrom    DateTime
+
+  @@index([vehicleClass, validFrom])
+}
+
+model Checkin {
+  id         String   @id // generated on the phone so offline retries are idempotent
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  type       String // START | VISIT | END
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  lat        Float
+  lng        Float
+  accuracyM  Float?
+  gpsTime    DateTime
+  serverTime DateTime @default(now())
+  flags      String? // JSON array: OUTSIDE_GEOFENCE | LOW_ACCURACY | TIME_SKEW
+
+  @@index([employeeId, gpsTime])
+}
+
+model DailyDistance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        String // YYYY-MM-DD
+  plannedKm   Float
+  actualKm    Float
+  withinKm    Float
+  toleranceKm Float
+  excessKm    Float
+  exceptions  DistanceException[]
+
+  @@unique([employeeId, date])
+}
+
+model DistanceException {
+  id          String   @id @default(cuid())
+  dailyId     String
+  daily       DailyDistance @relation(fields: [dailyId], references: [id])
+  requestedKm Float
+  reasonCode  String
+  note        String?
+  status      String // SUBMITTED | APPROVED | PARTIAL | REJECTED
+  approvedKm  Float?
+  createdAt   DateTime @default(now())
+  approvals   Approval[]
+}
+
+model MonthlyStatement {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id])
+  month            String // YYYY-MM
+  approvedKm       Float
+  vehicleAllowance Float
+  petrolAmount     Float
+  adjustments      Float    @default(0)
+  total            Float
+  status           String // OPEN | REP_CONFIRMED | DISPUTED | RSM_APPROVED | PAID
+
+  @@unique([employeeId, month])
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  actorId  String
+  entity   String
+  entityId String
+  action   String
+  detail   String?
+  at       DateTime @default(now())
+}

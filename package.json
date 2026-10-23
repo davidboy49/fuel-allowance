@@ -1,0 +1,83 @@
+{
+  "name": "fuel-allowance",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "generate-routes": "tsr generate",
+    "build": "vite build",
+    "preview": "vite preview",
+    "db:generate": "dotenv -e .env.local -- prisma generate",
+    "db:push": "dotenv -e .env.local -- prisma db push",
+    "db:migrate": "dotenv -e .env.local -- prisma migrate dev",
+    "db:studio": "dotenv -e .env.local -- prisma studio",
+    "db:seed": "dotenv -e .env.local -- prisma db seed",
+    "lint": "eslint",
+    "format": "prettier --write . && eslint --fix",
+    "check": "prettier --check .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "start": "node .output/server/index.mjs",
+    "bootstrap": "tsx prisma/bootstrap.ts"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.3.0",
+    "@prisma/adapter-better-sqlite3": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/match-sorter-utils": "9.2.6",
+    "@tanstack/react-devtools": "0.10.13",
+    "@tanstack/react-form": "1.33.5",
+    "@tanstack/react-query": "5.104.5",
+    "@tanstack/react-query-devtools": "5.104.5",
+    "@tanstack/react-router": "1.170.45",
+    "@tanstack/react-router-devtools": "1.167.2",
+    "@tanstack/react-router-ssr-query": "1.167.3",
+    "@tanstack/react-start": "1.169.3",
+    "@tanstack/react-table": "9.3.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.577.0",
+    "nitro": "3.0.260610-beta",
+    "prisma": "^7.4.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.0.2",
+    "tailwindcss": "^4.1.18",
+    "tw-animate-css": "^1.3.6",
+    "vitest": "^5.0.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/typography": "^0.5.16",
+    "@tanstack/devtools-vite": "0.8.5",
+    "@tanstack/eslint-config": "0.4.0",
+    "@tanstack/router-cli": "^1.132.0",
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.20.0",
+    "prettier": "^3.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss",
+      "@prisma/engines",
+      "prisma",
+      "better-sqlite3"
+    ]
+  }
+}
